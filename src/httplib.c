@@ -29,7 +29,7 @@ HTTPRes_t *http_create_res() {
     return res;
 }
 
-bool mgos_mongoose_httplib_init() { return true; }
+bool mgos_httplib_init() { return true; }
 void http_free_res(HTTPRes_t *res) {
     free(res->body);
     free(res);
