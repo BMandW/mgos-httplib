@@ -1,0 +1,31 @@
+author: bmandw
+description: HTTP library for Mongoose OS app
+type: lib
+version: 1.0
+platform: esp32
+name: httplib
+
+includes:
+  - include
+
+sources:
+  - src
+
+config_schema:
+#  - ["httplib.user-agent", "s", { title: "My app custom settings" }]
+
+libs:
+# - origin: https://github.com/mongoose-os-libs/boards
+# - origin: https://github.com/mongoose-os-libs/mjs
+
+tags:
+  - c
+
+cdefs:
+  MG_ENABLE_CALLBACK_USERDATA: 1
+
+cflags:
+  #- "Wno-"
+
+# Used by the mos tool to catch mos binaries incompatible with this file format
+manifest_version: 2017-09-29
