@@ -6,6 +6,7 @@
 
 #include "mgos.h"
 
+static const char *USER_AGENT = "ESP32";
 static HTTPReq_t _req;
 
 HTTPReq_t *http_create_req(char *url, const int method, const char *content_type) {
@@ -16,7 +17,13 @@ HTTPReq_t *http_create_req(char *url, const int method, const char *content_type
     strcat(_req.header, "Content-Type:");
     strcat(_req.header, content_type);
     strcat(_req.header, "\r\n");
-    strcat(_req.header, "User-Agent: ESP32\r\n");
+    char *user_agent = (char *)mgos_sys_config_get_httplib_user_agent();
+    if (user_agent == NULL) {
+        user_agent = (char *)USER_AGENT;
+    }
+    strcat(_req.header, "User-Agent:");
+    strcat(_req.header, user_agent);
+    strcat(_req.header, "\r\n");
     return &_req;
 }
 HTTPRes_t *http_create_res() {
@@ -29,7 +36,7 @@ HTTPRes_t *http_create_res() {
     return res;
 }
 
-bool mgos_httplib_init() { return true; }
+bool mgos_mgos_httplib_init() { return true; }
 void http_free_res(HTTPRes_t *res) {
     free(res->body);
     free(res);

@@ -12,7 +12,7 @@ sources:
   - src
 
 config_schema:
-#  - ["httplib.user-agent", "s", { title: "My app custom settings" }]
+  - ['httplib.user_agent', 's', { title: 'HTTP client UserAgent' }]
 
 libs:
 # - origin: https://github.com/mongoose-os-libs/boards
