@@ -4,8 +4,6 @@
 
 static const int HTTP_METHOD_GET = 1;
 static const int HTTP_METHOD_POST = 2;
-static const int HTTP_METHOD_PUT = 3;
-static const int HTTP_METHOD_DELETE = 4;
 static const char *HTTP_CT_FORM = "application/x-www-form-urlencoded";
 static const char *HTTP_CT_JSON = "application/json";
 
@@ -20,6 +18,7 @@ typedef struct {
     bool finish;
     int status;
     char *body;
+    char *header;
     int content_length;
 } HTTPRes_t;
 
@@ -27,7 +26,6 @@ HTTPReq_t *http_create_req(char *url, const int method, const char *content_type
 void http_req_add_header(HTTPReq_t *req, char *name, char *value);
 
 HTTPRes_t *http_send(HTTPReq_t *req);
-void http_free_res(HTTPRes_t *res);
 
 void http_add_form_int(HTTPReq_t *req, char *name, int val);
 void http_add_form_str(HTTPReq_t *req, char *name, char *val);
@@ -35,10 +33,18 @@ void http_add_form_long(HTTPReq_t *req, char *name, long val);
 void http_add_form_float(HTTPReq_t *req, char *name, float val);
 void http_set_request_body(HTTPReq_t *req, char *body);
 
+char *http_res_header_value(HTTPRes_t *res, char *name, char *buff, int bufflen);
+void http_res_free(HTTPRes_t *res);
+
 char *HTTPReq_getURL(HTTPReq_t *req);
 int HTTPReq_getMethod(HTTPReq_t *req);
 char *HTTPReq_getHeader(HTTPReq_t *req);
 char *HTTPReq_getRawBody(HTTPReq_t *req);
 
 int HTTPRes_getStatus(HTTPRes_t *res);
+char *HTTPRes_getBody(HTTPRes_t *res);
+bool HTTPRes_isSuccess(HTTPRes_t *res);
+int HTTPRes_getContentLength(HTTPRes_t *res);
+char *HTTPRes_getHeader(HTTPRes_t *res);
+
 #endif

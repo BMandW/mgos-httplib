@@ -1,4 +1,9 @@
 let HTTPLib = {
+    MT_GET: 1,
+    MT_POST: 2,
+    CT_FORM: 'application/x-www-form-urlencoded',
+    CT_JSON: 'application/json',
+
     _send: ffi('void* http_send(void*)'),
 
     send: function (req) {
@@ -10,10 +15,22 @@ let HTTPLib = {
 let HTTPRes = {
     _proto: {
         free: function () {
-            ffi('void http_free_res(void *)')(this.ins);
+            ffi('void http_res_free(void *)')(this.ins);
         },
         getStatus: function () {
             return ffi('int HTTPRes_getStatus(void *)')(this.ins);
+        },
+        getBody: function () {
+            return ffi('char* HTTPRes_getBody(void *)')(this.ins);
+        },
+        isSuccess: function () {
+            return ffi('bool HTTPRes_isSuccess(void *)')(this.ins);
+        },
+        getCLen: function () {
+            return ffi('int HTTPRes_getContentLength(void *)')(this.ins);
+        },
+        getHeader: function (name) {
+            return ffi('char* HTTPRes_getHeader(void *)')(this.ins);
         }
     }
 };
