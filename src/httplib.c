@@ -1,11 +1,10 @@
 #define MG_ENABLE_CALLBACK_USERDATA 1
 #include "httplib.h"
 
+#include <mgos.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "mgos.h"
 
 static const char *USER_AGENT = "ESP32";
 static HTTPReq_t _req;

@@ -1,7 +1,7 @@
 author: bmandw
 description: HTTP library for Mongoose OS app
 type: lib
-version: 1.0
+version: 1.0.1
 platform: esp32
 name: httplib
 
@@ -11,11 +11,14 @@ includes:
 sources:
   - src
 
+filesystem:
+  - fs
 config_schema:
   - ['httplib.user_agent', 's', { title: 'HTTP client UserAgent' }]
 
 libs:
   - origin: https://github.com/mongoose-os-libs/boards
+  - origin: https://github.com/mongoose-os-libs/ca-bundle
   - origin: https://github.com/mongoose-os-libs/mjs
 
 tags:
