@@ -5,16 +5,19 @@ let HTTPLib = {
     CT_JSON: 'application/json',
 
     _send: ffi('void* http_send(void*)'),
+    _strlen: ffi('int strlen(void*)'),
 
     send: function (req) {
         let obj = Object.create(HTTPRes._proto);
         obj.ins = HTTPLib._send(req.ins);
+        obj.buff = Sys.malloc(256);
         return obj;
     }
 };
 let HTTPRes = {
     _proto: {
         free: function () {
+            Sys.free(this.buff);
             ffi('void http_res_free(void *)')(this.ins);
         },
         getStatus: function () {
@@ -29,8 +32,21 @@ let HTTPRes = {
         getCLen: function () {
             return ffi('int HTTPRes_getContentLength(void *)')(this.ins);
         },
-        getHeader: function (name) {
+        getHeader: function () {
             return ffi('char* HTTPRes_getHeader(void *)')(this.ins);
+        },
+        getHeaderVal: function (name) {
+            return ffi('char* http_res_header_value(void*, char*)')(this.ins, name);
+        },
+        getHeaderValWithBuff: function (name) {
+            let b = ffi('char* http_res_hval_buff(void*, char*, void*, int)')(this.ins, name, this.buff, 256);
+            if (b !== null) {
+                let l = HTTPLib._strlen(this.buff);
+                let s = mkstr(this.buff, 0, l, true);
+                return s;
+            } else {
+                return null;
+            }
         }
     }
 };
@@ -58,14 +74,8 @@ let HTTPReq = {
         getRawBody: function () {
             return ffi('char* HTTPReq_getRawBody(void *)')(this.ins);
         },
-        addFormInt: function (name, val) {
-            return ffi('void http_add_form_int(void *, char*, int)')(this.ins, name, val);
-        },
-        addFormStr: function (name, val) {
-            return ffi('void http_add_form_str(void *, char*, char*)')(this.ins, name, val);
-        },
-        addFormFloat: function (name, val) {
-            return ffi('void http_add_form_float(void *, char*, float)')(this.ins, name, val);
+        addFormVal: function (name, val) {
+            return ffi('void http_add_form_val(void *, char*, char*)')(this.ins, name, val);
         },
         setBody: function (body) {
             return ffi('void http_set_request_body(void *, char*)')(this.ins, body);

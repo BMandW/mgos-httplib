@@ -2,13 +2,20 @@
 #include "httplib.h"
 
 #include <mgos.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
+#include "linechar.h"
 
 static const char *USER_AGENT = "ESP32";
 static HTTPReq_t _req;
 
+/**!
+ * HTTP Requestオブジェクトの作成。
+ * リクエストボディは固定で512バイトのヘッダとボディを持ち開放の必要はない。
+ * @param url 送信先URL
+ * @param method HTTPメソッド
+ * @param content_type HTTP ContentType(NULLのときHTTP_METHOD_GET)
+ * @return HTTPリクエストオブジェクト
+ */
 HTTPReq_t *http_create_req(char *url, const int method, const char *content_type) {
     _req.url = (char *)url;
     _req.method = method;
@@ -31,6 +38,12 @@ HTTPReq_t *http_create_req(char *url, const int method, const char *content_type
     strcat(_req.header, "\r\n");
     return &_req;
 }
+/**!
+ * HTTP Responseオブジェクトの生成。
+ * (http_send関数内で生成されるため外部からは使用しない)
+ * 生成されたHTTPRes_tオブジェクトは http_res_free関数で開放する必要がある。
+ * @return HTTPレスポンスオブジェクト
+ */
 HTTPRes_t *http_create_res() {
     HTTPRes_t *res = malloc(sizeof(HTTPRes_t));
     res->success = false;
@@ -42,118 +55,56 @@ HTTPRes_t *http_create_res() {
     return res;
 }
 
+/**!
+ * ライブラリ初期関数
+ */
 bool mgos_mgos_httplib_init() { return true; }
+
+/**!
+ * 生成されたHTTP Response オブジェクトの開放
+ */
 void http_res_free(HTTPRes_t *res) {
     free(res->body);
     free(res->header);
     free(res);
 }
+
+/**!
+ * リクエストヘッダ情報を追加する
+ * @param req HTTP Requestオブジェクト
+ * @param name ヘッダ名
+ * @param value ヘッダ値
+ */
 void http_req_add_header(HTTPReq_t *req, char *name, char *value) {
     sprintf(req->header, "%s%s: %s\r\n", req->header, name, value);
 }
-void http_add_form_int(HTTPReq_t *req, char *name, int val) {
-    const char *prefix = (strlen(req->raw_body) == 0) ? "" : "&";
-
-    sprintf(req->raw_body, "%s%s%s=%d", req->raw_body, prefix, name, val);
-}
-void http_add_form_str(HTTPReq_t *req, char *name, char *val) {
+/**!
+ * リクエストに文字列のフォーム値を追加する
+ * @param req HTTP Requestオブジェクト
+ * @param name フォームパラメータ名
+ * @param val フォームパラメーダ値
+ */
+void http_add_form_val(HTTPReq_t *req, char *name, char *val) {
     const char *prefix = (strlen(req->raw_body) == 0) ? "" : "&";
     sprintf(req->raw_body, "%s%s%s=%s", req->raw_body, prefix, name, val);
 }
-void http_add_form_long(HTTPReq_t *req, char *name, long val) {
-    const char *prefix = (strlen(req->raw_body) == 0) ? "" : "&";
-    sprintf(req->raw_body, "%s%s%s=%ld", req->raw_body, prefix, name, val);
-}
-void http_add_form_float(HTTPReq_t *req, char *name, float val) {
-    const char *prefix = (strlen(req->raw_body) == 0) ? "" : "&";
-    sprintf(req->raw_body, "%s%s%s=%.3f", req->raw_body, prefix, name, val);
-}
+
+/**!
+ * リクエストボディに直接データをセットする。
+ * josnリクエストなどで使用。
+ * @param req HTTP Requestオブジェクト
+ * @param body リクエストボディ文字列
+ */
 void http_set_request_body(HTTPReq_t *req, char *body) { strcpy(req->raw_body, body); }
 
 /**!
- * @brief １行読み込み
- * @param data 読み込み元文字列
- * @param buff 1行データの格納用文字列バッファ
- * @param bufflen 格納文字列のバッファサイズ
- * @param next 継続行を読み込むための次の配列用ポインタ(NULLのとき終了)
- * @return 0以上のとき取得成功。マイナスのときエラー
- *
-    char *next = data;
-    char buff[512];
-    do {
-        int len = readline(next, buff, 512, &next);
-        cout << len << "[" << buff << "]" << endl;
-    } while (next != NULL);
+ * レスポンスデータの読み取り
+ * @param resdata レスポンスデータ文字列
+ * @param message_len レスポンスデータ文字列長
+ * @param res レスポンスオブジェクトポインタ
+ * @return 成功のとき0。
  */
-int readline(char *data, int datalen, char *buff, int bufflen, char **next) {
-    char *p = memchr(data, '\n', datalen);
-    int len;
-    //改行検索
-    if (p == NULL) {
-        len = bufflen - 1 > datalen ? datalen : bufflen - 1;
-        strncpy(buff, data, len);
-        buff[len] = '\0';
-        *next = NULL;
-        return len;
-    }
-
-    //次の改行後文字列開始位置nextの設定
-    len = p - data;
-    *next = p + 1;
-    if (len > bufflen - 1) {
-        *next = NULL;
-        return -1;
-    }
-    // buffer内のNULLターミネイト
-    strncpy(buff, data, len);
-    if (buff[len - 1] == '\r') {
-        buff[len - 1] = '\0';
-        return len + 1;
-    } else {
-        buff[len] = '\0';
-        return len;
-    }
-}
-/**!
- * @brief 文字列分割して指定インデックスの要素を抜き出し
- * @param src 元文字列
- * @param delim 区切り文字の集合(それぞれのcharで区切られる)
- * @param index 取得要素インデックス(0~)
- * @param buff 取得文字列格納バッファ
- * @param bufflen バッファ長
- * @return 抽出された要素文字列の先頭charポインタ。見つからない場合はNULL
- */
-char *split(char *src, char *delim, int index, char *buff, int bufflen) {
-    int l = strlen(src);
-    // strtok用にsrcのコピー文字列生成
-    char *data = (char *)malloc(l * sizeof(char));
-    strcpy(data, src);
-
-    char *p = strtok(data, delim);
-    int idx = 0;
-
-    while (p != NULL) {
-        if (idx == index) {
-            if (strlen(p) > bufflen - 1) {
-                //要素文字列がバッファ長を超えている場合はバッファまで一部格納
-                strncpy(buff, p, bufflen - 1);
-                buff[bufflen - 1] = '\0';
-            } else {
-                //超えていない場合は全部コピー
-                strcpy(buff, p);
-            }
-            free(data);
-            return buff;
-        }
-        idx++;
-        p = strtok(NULL, delim);
-    }
-    //見つからない場合
-    free(data);
-    buff[0] = '\0';
-    return NULL;
-}
-static int read_response(char *resdata, int message_len, HTTPRes_t *res) {
+static int _read_response(char *resdata, int message_len, HTTPRes_t *res) {
     int content_length = -1;
     char buff[512];
     char elmbuf[64];
@@ -180,8 +131,10 @@ static int read_response(char *resdata, int message_len, HTTPRes_t *res) {
                 //ヘッダ終了
                 int body_len = message_len - read_len;
                 LOG(LL_INFO, ("content_length=%d, body_len=%d", res->content_length, body_len));
-                res->body = (char *)calloc(sizeof(char), body_len + 1);
-                strncpy(res->body, next, res->content_length);
+                if (body_len > 0) {
+                    res->body = (char *)calloc(sizeof(char), body_len + 1);
+                    strncpy(res->body, next, res->content_length);
+                }
 
                 int header_len = next - header_start;
                 res->header = (char *)calloc(sizeof(char), header_len + 1);
@@ -213,21 +166,27 @@ static int read_response(char *resdata, int message_len, HTTPRes_t *res) {
 
     return 0;
 }
-static void ev_handler(struct mg_connection *c, int ev, void *p, void *ud) {
+
+/**!
+ * HTTP リクエスト後のイベントハンドラ
+ */
+static void _event_handler(struct mg_connection *c, int ev, void *p, void *ud) {
     HTTPRes_t *res = (HTTPRes_t *)ud;
     if (ev == MG_EV_HTTP_REPLY) {
         struct http_message *hm = (struct http_message *)p;
         LOG(LL_DEBUG, ("Response Receive, %d", (int)hm->message.len));
         c->flags |= MG_F_CLOSE_IMMEDIATELY;
-        // fwrite(hm->message.p, 1, (int)hm->message.len, stdout);
-        // putchar('\n');
-
-        read_response((char *)hm->message.p, (int)hm->message.len, res);
+        _read_response((char *)hm->message.p, (int)hm->message.len, res);
     } else if (ev == MG_EV_CLOSE) {
         res->finish = true;
         res->success = (res->status == 200);
     }
 }
+/**!
+ * HTTPリクエスト送信
+ * @param req HTTP リクエストオブジェクト
+ * @return res HTTP レスポンスオブジェクト(要 http_res_free)
+ */
 HTTPRes_t *http_send(HTTPReq_t *req) {
     LOG(LL_INFO, ("HTTP SEND REQUEST"));
     struct mg_mgr *mgr = mgos_get_mgr();
@@ -236,15 +195,25 @@ HTTPRes_t *http_send(HTTPReq_t *req) {
     LOG(LL_INFO, ("REQUEST: %s", req->url));
     LOG(LL_DEBUG, ("REQUEST: %s", req->header));
     LOG(LL_DEBUG, ("REQUEST: %s", req->raw_body));
-    conn = mg_connect_http(mgr, (mg_event_handler_t)ev_handler, res, req->url, req->header, req->raw_body);
+    conn = mg_connect_http(mgr, (mg_event_handler_t)_event_handler, res, req->url, req->header, req->raw_body);
 
+    //レスポンス受信を待つ
     while (!res->finish) {
         mg_mgr_poll(mgr, 100);
     }
     LOG(LL_INFO, ("Finish Send"));
     return res;
 }
-char *http_res_header_value(HTTPRes_t *res, char *name, char *buff, int bufflen) {
+
+/**
+ * レスポンスヘッダ値取得(バッファ値指定)
+ * @param res HTTPレスポンスオブジェクト
+ * @param name ヘッダ名
+ * @param buff ヘッダ値格納用バッファ
+ * @param bufflen バッファ長
+ * @return 取得した値。エラー発生時はNULL
+ */
+char *http_res_hval_buff(HTTPRes_t *res, char *name, char *buff, int bufflen) {
     char linebuff[256];
     char value_buff[128];
     char *next = res->header;
@@ -277,6 +246,11 @@ char *http_res_header_value(HTTPRes_t *res, char *name, char *buff, int bufflen)
     } while (next != NULL);
     return NULL;
 }
+char *http_res_header_value(HTTPRes_t *res, char *name) {
+    return http_res_hval_buff(res, name, res->header_val, sizeof(res->header_val));
+}
+
+// mJS インターフェース用関数
 char *HTTPReq_getURL(HTTPReq_t *req) { return req->header; }
 int HTTPReq_getMethod(HTTPReq_t *req) { return req->method; }
 char *HTTPReq_getHeader(HTTPReq_t *req) { return req->header; }
