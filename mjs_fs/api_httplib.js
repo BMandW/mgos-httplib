@@ -10,14 +10,12 @@ let HTTPLib = {
     send: function (req) {
         let obj = Object.create(HTTPRes._proto);
         obj.ins = HTTPLib._send(req.ins);
-        obj.buff = Sys.malloc(256);
         return obj;
     }
 };
 let HTTPRes = {
     _proto: {
         free: function () {
-            Sys.free(this.buff);
             ffi('void http_res_free(void *)')(this.ins);
         },
         getStatus: function () {
@@ -36,13 +34,21 @@ let HTTPRes = {
             return ffi('char* HTTPRes_getHeader(void *)')(this.ins);
         },
         getHeaderVal: function (name) {
-            return ffi('char* http_res_header_value(void*, char*)')(this.ins, name);
+            let b = ffi('void* http_res_header_value(void*, char*)')(this.ins, name);
+            if (b !== null) {
+                let l = HTTPLib._strlen(this.buff);
+                let s = mkstr(this.buff, 0, l, true);
+                return s;
+            } else {
+                return null;
+            }
         },
         getHeaderValWithBuff: function (name) {
             let b = ffi('char* http_res_hval_buff(void*, char*, void*, int)')(this.ins, name, this.buff, 256);
             if (b !== null) {
-                let l = HTTPLib._strlen(this.buff);
-                let s = mkstr(this.buff, 0, l, true);
+                let l = HTTPLib._strlen(b);
+                print('len', l);
+                let s = mkstr(b, 0, l, true);
                 return s;
             } else {
                 return null;

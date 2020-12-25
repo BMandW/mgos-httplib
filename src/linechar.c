@@ -43,11 +43,10 @@ int readline(char *data, int datalen, char *buff, int bufflen, char **next) {
     strncpy(buff, data, len);
     if (buff[len - 1] == '\r') {
         buff[len - 1] = '\0';
-        return len + 1;
     } else {
         buff[len] = '\0';
-        return len;
     }
+    return len + 1;
 }
 /**!
  * @brief 文字列分割して指定インデックスの要素を抜き出し
@@ -61,7 +60,7 @@ int readline(char *data, int datalen, char *buff, int bufflen, char **next) {
 char *split(char *src, char *delim, int index, char *buff, int bufflen) {
     int l = strlen(src);
     // strtok用にsrcのコピー文字列生成
-    char *data = (char *)malloc(l * sizeof(char));
+    char *data = (char *)malloc(l * sizeof(char) + 1);
     strcpy(data, src);
 
     char *p = strtok(data, delim);

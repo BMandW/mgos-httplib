@@ -17,6 +17,7 @@ typedef struct {
     bool success;
     bool finish;
     int status;
+    bool recv;
     char *body;
     char *header;
     int content_length;

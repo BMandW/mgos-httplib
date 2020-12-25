@@ -47,6 +47,7 @@ HTTPReq_t *http_create_req(char *url, const int method, const char *content_type
 HTTPRes_t *http_create_res() {
     HTTPRes_t *res = malloc(sizeof(HTTPRes_t));
     res->success = false;
+    res->recv = false;
     res->status = -1;
     res->content_length = 0;
     res->header = NULL;
@@ -64,8 +65,12 @@ bool mgos_mgos_httplib_init() { return true; }
  * 生成されたHTTP Response オブジェクトの開放
  */
 void http_res_free(HTTPRes_t *res) {
-    free(res->body);
-    free(res->header);
+    if (res->body != NULL) {
+        free(res->body);
+    }
+    if (res->header_val != NULL) {
+        free(res->header);
+    }
     free(res);
 }
 
@@ -112,11 +117,12 @@ static int _read_response(char *resdata, int message_len, HTTPRes_t *res) {
     int line_no = 0;
     char *next = resdata;
     int read_len = 0;
+    bool is_header = true;
 
     do {
         int l = readline(next, (message_len - read_len), buff, sizeof(buff), &next);
         read_len += l;
-        LOG(LL_DEBUG, ("%d\t[%s]", line_no, buff));
+        LOG(LL_INFO, ("%d\t%d\t[%s]", line_no, read_len, buff));
 
         if (line_no == 0) {
             // STATUS 取得
@@ -128,24 +134,29 @@ static int _read_response(char *resdata, int message_len, HTTPRes_t *res) {
             header_start = next;
         } else {
             if (strlen(buff) == 0) {
-                //ヘッダ終了
-                int body_len = message_len - read_len;
-                LOG(LL_INFO, ("content_length=%d, body_len=%d", res->content_length, body_len));
-                if (body_len > 0) {
-                    res->body = (char *)calloc(sizeof(char), body_len + 1);
-                    strncpy(res->body, next, res->content_length);
-                }
+                if (is_header == true) {
+                    //ヘッダ終了
+                    is_header = false;
+                    int body_len = message_len - read_len;
 
-                int header_len = next - header_start;
-                res->header = (char *)calloc(sizeof(char), header_len + 1);
-                strncpy(res->header, header_start, header_len);
-                //ヘッダの末尾の空行除去
-                for (int i = header_len; i >= 0; i--) {
-                    char c = res->header[i];
-                    if (c == '\n' || c == '\r' || c == '\0') {
-                        res->header[i] = '\0';
-                    } else {
-                        break;
+                    LOG(LL_INFO, ("content_length=%d, body_len=%d", res->content_length, body_len));
+                    if (body_len > 0) {
+                        res->body = (char *)calloc(sizeof(char), body_len + 1);
+                        strncpy(res->body, next, res->content_length);
+                    }
+                    int header_len = next - header_start;
+                    LOG(LL_INFO, ("header_len=%d", header_len));
+                    res->header = (char *)calloc(sizeof(char), header_len + 1);
+
+                    strncpy(res->header, header_start, header_len);
+                    //ヘッダの末尾の空行除去
+                    for (int i = header_len; i >= 0; i--) {
+                        char c = res->header[i];
+                        if (c == '\n' || c == '\r' || c == '\0') {
+                            res->header[i] = '\0';
+                        } else {
+                            break;
+                        }
                     }
                 }
             } else {
@@ -172,14 +183,21 @@ static int _read_response(char *resdata, int message_len, HTTPRes_t *res) {
  */
 static void _event_handler(struct mg_connection *c, int ev, void *p, void *ud) {
     HTTPRes_t *res = (HTTPRes_t *)ud;
+    LOG(LL_DEBUG, ("EV %d", ev));
     if (ev == MG_EV_HTTP_REPLY) {
+        res->recv = true;
         struct http_message *hm = (struct http_message *)p;
         LOG(LL_DEBUG, ("Response Receive, %d", (int)hm->message.len));
         c->flags |= MG_F_CLOSE_IMMEDIATELY;
         _read_response((char *)hm->message.p, (int)hm->message.len, res);
     } else if (ev == MG_EV_CLOSE) {
+        if (res->recv) {
+            res->success = (res->status == 200);
+        } else {
+            res->success = false;
+        }
         res->finish = true;
-        res->success = (res->status == 200);
+        LOG(LL_DEBUG, ("CLOSE %d, %d %d", res->finish, res->success, res->recv));
     }
 }
 /**!
@@ -192,16 +210,24 @@ HTTPRes_t *http_send(HTTPReq_t *req) {
     struct mg_mgr *mgr = mgos_get_mgr();
     struct mg_connection *conn;
     HTTPRes_t *res = http_create_res();
-    LOG(LL_INFO, ("REQUEST: %s", req->url));
-    LOG(LL_DEBUG, ("REQUEST: %s", req->header));
-    LOG(LL_DEBUG, ("REQUEST: %s", req->raw_body));
+    LOG(LL_INFO, ("REQUEST URL: [%s]", req->url));
+    LOG(LL_DEBUG, ("REQUEST HEADER: [%s]", req->header));
+    LOG(LL_DEBUG, ("REQUEST BODY: [%s]", req->raw_body));
     conn = mg_connect_http(mgr, (mg_event_handler_t)_event_handler, res, req->url, req->header, req->raw_body);
 
     //レスポンス受信を待つ
-    while (!res->finish) {
+    int t = 0;
+    for (t = 0; t < 5 && res->finish == false; t++) {
+        LOG(LL_DEBUG, ("poll %d, %d %d", res->finish, res->success, res->recv));
         mg_mgr_poll(mgr, 100);
+        sleep(1);
     }
-    LOG(LL_INFO, ("Finish Send"));
+    if (t >= 5) {
+        LOG(LL_INFO, ("Timeout %d", res->success));
+    } else {
+        LOG(LL_INFO, ("Finish Send"));
+    }
+    mg_mgr_free(mgr);
     return res;
 }
 
@@ -215,20 +241,20 @@ HTTPRes_t *http_send(HTTPReq_t *req) {
  */
 char *http_res_hval_buff(HTTPRes_t *res, char *name, char *buff, int bufflen) {
     char linebuff[256];
-    char value_buff[128];
+    char namebuff[64];
     char *next = res->header;
     int header_len = strlen(res->header);
 
     do {
         int l = readline(next, header_len, linebuff, sizeof(linebuff), &next);
-        char *header_name = split(linebuff, (char *)":", 0, buff, bufflen);
+        char *header_name = split(linebuff, (char *)":", 0, namebuff, sizeof(namebuff));
         int i = 0;
         while (header_name[i] != '\0') {
             header_name[i] = (char)tolower((int)header_name[i]);
             i++;
         }
         if (strcmp(header_name, name) == 0) {
-            char *header_value = split(linebuff, (char *)":", 1, value_buff, sizeof(value_buff));
+            char *header_value = linebuff + strlen(header_name) + 1;  // name長さ+1(:)がvalue開始位置
             if (header_value != NULL) {
                 //:のあとのスペースを読み飛ばす
                 while (header_value[0] == ' ') {
