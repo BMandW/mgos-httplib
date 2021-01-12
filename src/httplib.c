@@ -183,7 +183,7 @@ static int _read_response(char *resdata, int message_len, HTTPRes_t *res) {
  */
 static void _event_handler(struct mg_connection *c, int ev, void *p, void *ud) {
     HTTPRes_t *res = (HTTPRes_t *)ud;
-    LOG(LL_DEBUG, ("EV %d", ev));
+    // LOG(LL_DEBUG, ("EV %d", ev));
     if (ev == MG_EV_HTTP_REPLY) {
         res->recv = true;
         struct http_message *hm = (struct http_message *)p;
@@ -217,17 +217,16 @@ HTTPRes_t *http_send(HTTPReq_t *req) {
 
     //レスポンス受信を待つ
     int t = 0;
-    for (t = 0; t < 5 && res->finish == false; t++) {
+    for (t = 0; t < 30 && res->finish == false; t++) {
         LOG(LL_DEBUG, ("poll %d, %d %d", res->finish, res->success, res->recv));
         mg_mgr_poll(mgr, 100);
         sleep(1);
     }
-    if (t >= 5) {
+    if (t >= 30) {
         LOG(LL_INFO, ("Timeout %d", res->success));
     } else {
         LOG(LL_INFO, ("Finish Send"));
     }
-    mg_mgr_free(mgr);
     return res;
 }
 
