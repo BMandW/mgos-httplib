@@ -17,9 +17,11 @@ typedef struct {
     bool success;
     bool finish;
     int status;
+    bool recv;
     char *body;
     char *header;
     int content_length;
+    char header_val[256];
 } HTTPRes_t;
 
 HTTPReq_t *http_create_req(char *url, const int method, const char *content_type);
@@ -27,13 +29,11 @@ void http_req_add_header(HTTPReq_t *req, char *name, char *value);
 
 HTTPRes_t *http_send(HTTPReq_t *req);
 
-void http_add_form_int(HTTPReq_t *req, char *name, int val);
-void http_add_form_str(HTTPReq_t *req, char *name, char *val);
-void http_add_form_long(HTTPReq_t *req, char *name, long val);
-void http_add_form_float(HTTPReq_t *req, char *name, float val);
+void http_add_form_val(HTTPReq_t *req, char *name, char *val);
 void http_set_request_body(HTTPReq_t *req, char *body);
 
-char *http_res_header_value(HTTPRes_t *res, char *name, char *buff, int bufflen);
+char *http_res_hval_buff(HTTPRes_t *res, char *name, char *buff, int bufflen);
+char *http_res_header_value(HTTPRes_t *res, char *name);
 void http_res_free(HTTPRes_t *res);
 
 char *HTTPReq_getURL(HTTPReq_t *req);
