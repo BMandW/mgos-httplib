@@ -81,7 +81,9 @@ void http_res_free(HTTPRes_t *res) {
  * @param value ヘッダ値
  */
 void http_req_add_header(HTTPReq_t *req, char *name, char *value) {
-    sprintf(req->header, "%s%s: %s\r\n", req->header, name, value);
+    char buff[512];
+    sprintf(buff, "%s: %s\r\n", name, value);
+    strcat(req->header, buff);
 }
 /**!
  * リクエストに文字列のフォーム値を追加する
@@ -91,7 +93,9 @@ void http_req_add_header(HTTPReq_t *req, char *name, char *value) {
  */
 void http_add_form_val(HTTPReq_t *req, char *name, char *val) {
     const char *prefix = (strlen(req->raw_body) == 0) ? "" : "&";
-    sprintf(req->raw_body, "%s%s%s=%s", req->raw_body, prefix, name, val);
+    char buff[1024];
+    sprintf(buff, "%s%s=%s", prefix, name, val);
+    strcat(req->raw_body, buff);
 }
 
 /**!
@@ -110,7 +114,6 @@ void http_set_request_body(HTTPReq_t *req, char *body) { strcpy(req->raw_body, b
  * @return 成功のとき0。
  */
 static int _read_response(char *resdata, int message_len, HTTPRes_t *res) {
-    int content_length = -1;
     char buff[512];
     char elmbuf[64];
     char *header_start = NULL;
@@ -208,12 +211,11 @@ static void _event_handler(struct mg_connection *c, int ev, void *p, void *ud) {
 HTTPRes_t *http_send(HTTPReq_t *req) {
     LOG(LL_INFO, ("HTTP SEND REQUEST"));
     struct mg_mgr *mgr = mgos_get_mgr();
-    struct mg_connection *conn;
     HTTPRes_t *res = http_create_res();
     LOG(LL_INFO, ("REQUEST URL: [%s]", req->url));
     LOG(LL_DEBUG, ("REQUEST HEADER: [%s]", req->header));
     LOG(LL_DEBUG, ("REQUEST BODY: [%s]", req->raw_body));
-    conn = mg_connect_http(mgr, (mg_event_handler_t)_event_handler, res, req->url, req->header, req->raw_body);
+    mg_connect_http(mgr, (mg_event_handler_t)_event_handler, res, req->url, req->header, req->raw_body);
 
     //レスポンス受信を待つ
     int t = 0;
@@ -245,7 +247,7 @@ char *http_res_hval_buff(HTTPRes_t *res, char *name, char *buff, int bufflen) {
     int header_len = strlen(res->header);
 
     do {
-        int l = readline(next, header_len, linebuff, sizeof(linebuff), &next);
+        readline(next, header_len, linebuff, sizeof(linebuff), &next);
         char *header_name = split(linebuff, (char *)":", 0, namebuff, sizeof(namebuff));
         int i = 0;
         while (header_name[i] != '\0') {
