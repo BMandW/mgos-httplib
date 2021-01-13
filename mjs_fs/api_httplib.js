@@ -36,19 +36,18 @@ let HTTPRes = {
         getHeaderVal: function (name) {
             let b = ffi('void* http_res_header_value(void*, char*)')(this.ins, name);
             if (b !== null) {
-                let l = HTTPLib._strlen(this.buff);
-                let s = mkstr(this.buff, 0, l, true);
+                let l = HTTPLib._strlen(b);
+                let s = mkstr(b, 0, l, true);
                 return s;
             } else {
                 return null;
             }
         },
-        getHeaderValWithBuff: function (name) {
-            let b = ffi('char* http_res_hval_buff(void*, char*, void*, int)')(this.ins, name, this.buff, 256);
+        getHeaderValWithBuff: function (name, buff) {
+            let b = ffi('char* http_res_hval_buff(void*, char*, void*, int)')(this.ins, name, buff, 256);
             if (b !== null) {
-                let l = HTTPLib._strlen(b);
-                print('len', l);
-                let s = mkstr(b, 0, l, true);
+                let l = HTTPLib._strlen(buff);
+                let s = mkstr(buff, 0, l, true);
                 return s;
             } else {
                 return null;
