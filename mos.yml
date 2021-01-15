@@ -1,7 +1,7 @@
 author: bmandw
 description: HTTP library for Mongoose OS app
 type: lib
-version: 1.0.4
+version: 1.0.5
 platform: esp32
 name: httplib
 

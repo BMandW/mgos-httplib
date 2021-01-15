@@ -195,7 +195,7 @@ static void _event_handler(struct mg_connection *c, int ev, void *p, void *ud) {
         _read_response((char *)hm->message.p, (int)hm->message.len, res);
     } else if (ev == MG_EV_CLOSE) {
         if (res->recv) {
-            res->success = (res->status == 200);
+            res->success = ((int)(res->status / 100) == 2);  // statusが200番台
         } else {
             res->success = false;
         }
