@@ -2,10 +2,10 @@
 #define HTTPLIB_H_
 #include <stdbool.h>
 
-static const int HTTP_METHOD_GET = 1;
-static const int HTTP_METHOD_POST = 2;
-static const char *HTTP_CT_FORM = "application/x-www-form-urlencoded";
-static const char *HTTP_CT_JSON = "application/json";
+#define HTTP_CT_FORM "application/x-www-form-urlencoded"
+#define HTTP_CT_JSON "application/json"
+
+enum HTTP_METHOD { M_GET, M_POST };
 
 typedef struct HTTPReq {
     char *url;

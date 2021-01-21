@@ -1,6 +1,6 @@
 let HTTPLib = {
-    MT_GET: 1,
-    MT_POST: 2,
+    MT_GET: 0,
+    MT_POST: 1,
     CT_FORM: 'application/x-www-form-urlencoded',
     CT_JSON: 'application/json',
 
