@@ -8,14 +8,6 @@
 static const char *USER_AGENT = "ESP32";
 static HTTPReq_t _req;
 
-/**!
- * HTTP Requestオブジェクトの作成。
- * リクエストボディは固定で512バイトのヘッダとボディを持ち開放の必要はない。
- * @param url 送信先URL
- * @param method HTTPメソッド
- * @param content_type HTTP ContentType(NULLのときHTTP_METHOD_GET)
- * @return HTTPリクエストオブジェクト
- */
 HTTPReq_t *http_create_req(char *url, const int method, const char *content_type) {
     _req.url = (char *)url;
     _req.method = method;
@@ -61,9 +53,6 @@ HTTPRes_t *http_create_res() {
  */
 bool mgos_mgos_httplib_init() { return true; }
 
-/**!
- * 生成されたHTTP Response オブジェクトの開放
- */
 void http_res_free(HTTPRes_t *res) {
     if (res->body != NULL) {
         free(res->body);
@@ -74,23 +63,11 @@ void http_res_free(HTTPRes_t *res) {
     free(res);
 }
 
-/**!
- * リクエストヘッダ情報を追加する
- * @param req HTTP Requestオブジェクト
- * @param name ヘッダ名
- * @param value ヘッダ値
- */
 void http_req_add_header(HTTPReq_t *req, char *name, char *value) {
     char buff[512];
     sprintf(buff, "%s: %s\r\n", name, value);
     strcat(req->header, buff);
 }
-/**!
- * リクエストに文字列のフォーム値を追加する
- * @param req HTTP Requestオブジェクト
- * @param name フォームパラメータ名
- * @param val フォームパラメーダ値
- */
 void http_add_form_val(HTTPReq_t *req, char *name, char *val) {
     const char *prefix = (strlen(req->raw_body) == 0) ? "" : "&";
     char buff[1024];
@@ -98,12 +75,6 @@ void http_add_form_val(HTTPReq_t *req, char *name, char *val) {
     strcat(req->raw_body, buff);
 }
 
-/**!
- * リクエストボディに直接データをセットする。
- * josnリクエストなどで使用。
- * @param req HTTP Requestオブジェクト
- * @param body リクエストボディ文字列
- */
 void http_set_request_body(HTTPReq_t *req, char *body) { strcpy(req->raw_body, body); }
 
 /**!
@@ -203,11 +174,6 @@ static void _event_handler(struct mg_connection *c, int ev, void *p, void *ud) {
         LOG(LL_DEBUG, ("CLOSE %d, %d %d", res->finish, res->success, res->recv));
     }
 }
-/**!
- * HTTPリクエスト送信
- * @param req HTTP リクエストオブジェクト
- * @return res HTTP レスポンスオブジェクト(要 http_res_free)
- */
 HTTPRes_t *http_send(HTTPReq_t *req) {
     LOG(LL_INFO, ("HTTP SEND REQUEST"));
     struct mg_mgr *mgr = mgos_get_mgr();
@@ -232,14 +198,6 @@ HTTPRes_t *http_send(HTTPReq_t *req) {
     return res;
 }
 
-/**
- * レスポンスヘッダ値取得(バッファ値指定)
- * @param res HTTPレスポンスオブジェクト
- * @param name ヘッダ名
- * @param buff ヘッダ値格納用バッファ
- * @param bufflen バッファ長
- * @return 取得した値。エラー発生時はNULL
- */
 char *http_res_hval_buff(HTTPRes_t *res, char *name, char *buff, int bufflen) {
     char linebuff[256];
     char namebuff[64];
